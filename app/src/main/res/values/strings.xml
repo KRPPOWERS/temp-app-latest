@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Kallichi Amman Temple</string>
+    <string name="exit_title">Exit App</string>
+    <string name="exit_message">Exit Kallichi Amman Temple app?</string>
+</resources>

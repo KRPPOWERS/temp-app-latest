@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#0d0a06</color>
+    <color name="surface">#16120b</color>
+    <color name="surface2">#1e1810</color>
+    <color name="gold">#c9922a</color>
+    <color name="gold_light">#e8b84b</color>
+    <color name="gold_dim">#7a5518</color>
+    <color name="text">#f0e6cc</color>
+    <color name="text_muted">#9a8660</color>
+    <color name="border">#3a2e1a</color>
+</resources>

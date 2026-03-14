@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer gold ring -->
+    <path
+        android:fillColor="#c9922a"
+        android:pathData="M54,8 m-44,0 a44,44 0 1,0 88,0 a44,44 0 1,0 -88,0"/>
+    <!-- Inner dark circle -->
+    <path
+        android:fillColor="#16120b"
+        android:pathData="M54,12 m-40,0 a40,40 0 1,0 80,0 a40,40 0 1,0 -80,0"/>
+
+    <!-- OM symbol - stylised using paths -->
+    <!-- Main body of Om -->
+    <path
+        android:fillColor="#e8b84b"
+        android:pathData="M42,58 C38,54 37,47 40,43 C43,39 48,38 52,40 C50,42 49,45 50,48 C45,47 43,51 44,55 C45,59 49,61 53,60 C57,59 59,55 58,51 C60,52 62,54 62,57 C62,63 57,67 51,67 C45,67 41,63 42,58 Z"/>
+    <!-- Upper curve -->
+    <path
+        android:fillColor="#e8b84b"
+        android:pathData="M52,40 C54,36 59,34 63,36 C67,38 68,43 66,47 C64,44 61,43 58,44 C57,41 55,40 52,40 Z"/>
+    <!-- Right bump -->
+    <path
+        android:fillColor="#e8b84b"
+        android:pathData="M58,51 C62,49 66,51 67,55 C68,59 65,63 61,63 C63,61 63,58 62,57 C62,54 60,52 58,51 Z"/>
+    <!-- Curve stroke on right -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#e8b84b"
+        android:strokeWidth="2.5"
+        android:pathData="M67,42 C71,40 73,36 71,32 C69,29 65,29 63,31"/>
+    <!-- Top dot -->
+    <path
+        android:fillColor="#e8b84b"
+        android:pathData="M66,26 m-3.5,0 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0"/>
+    <!-- Curved line under dot -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#e8b84b"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M58,70 C60,68 65,68 67,70 C69,72 68,75 65,76"/>
+</vector>
