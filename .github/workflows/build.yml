@@ -17,7 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         run: |
-          git config --global credential.helper store
           git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
           cd repo && git checkout ${{ github.sha }}
 
@@ -26,6 +25,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y openjdk-17-jdk
           java -version
+
+      - name: Download Gradle wrapper JAR
+        run: |
+          mkdir -p repo/gradle/wrapper
+          wget -q "https://repo1.maven.org/maven2/org/gradle/gradle-wrapper/8.4/gradle-wrapper-8.4.jar" \
+               -O repo/gradle/wrapper/gradle-wrapper.jar
+          echo "Gradle wrapper JAR: $(du -sh repo/gradle/wrapper/gradle-wrapper.jar)"
 
       - name: Install Android SDK
         run: |
@@ -42,18 +48,20 @@ jobs:
       - name: Build APK
         run: |
           cd repo
+          export ANDROID_HOME=/opt/android-sdk
+          export ANDROID_SDK_ROOT=/opt/android-sdk
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Copy APK
         run: |
-          APK_PATH="repo/app/build/outputs/apk/debug/app-debug.apk"
-          echo "APK size: $(du -sh $APK_PATH)"
           mkdir -p /tmp/apk-output
-          cp $APK_PATH /tmp/apk-output/KallichiAmmanTemple.apk
+          cp repo/app/build/outputs/apk/debug/app-debug.apk \
+             /tmp/apk-output/KallichiAmmanTemple.apk
+          echo "APK size: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
 
-      - name: Upload artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
