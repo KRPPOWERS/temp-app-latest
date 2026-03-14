@@ -51,70 +51,78 @@ jobs:
               f.write("android.enableJetifier=true\n")
           print("OK: gradle.properties")
 
-          # app/build.gradle
+          # app/build.gradle - with kotlin BOM to fix duplicate class error
           with open(f"{base}/app/build.gradle", "w") as f:
               f.write("""plugins {
-              id 'com.android.application'
-          }
-          android {
-              namespace 'com.kallichi.temple'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.kallichi.temple"
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              buildTypes {
-                  debug { debuggable true }
-                  release {
-                      minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                  }
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-              buildFeatures { buildConfig true }
-          }
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'androidx.core:core:1.12.0'
-          }
-          """)
+    id 'com.android.application'
+}
+android {
+    namespace 'com.kallichi.temple'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.kallichi.temple"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        debug { debuggable true }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    buildFeatures { buildConfig true }
+    configurations.all {
+        resolutionStrategy {
+            force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+        }
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core:1.12.0'
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
+}
+""")
           print("OK: app/build.gradle")
 
           # AndroidManifest.xml
           with open(f"{base}/app/src/main/AndroidManifest.xml", "w") as f:
               f.write("""<?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-              <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="@string/app_name"
-                  android:roundIcon="@mipmap/ic_launcher_round"
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.Temple"
-                  android:usesCleartextTraffic="true"
-                  android:hardwareAccelerated="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:screenOrientation="portrait"
-                      android:windowSoftInputMode="adjustResize"
-                      android:configChanges="orientation|screenSize|keyboardHidden|keyboard">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          """)
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Temple"
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+""")
           print("OK: AndroidManifest.xml")
 
           # Remove old mipmap folders
@@ -126,71 +134,63 @@ jobs:
           # Create mipmap-anydpi-v26
           os.makedirs(f"{res}/mipmap-anydpi-v26", exist_ok=True)
           icon_xml = """<?xml version="1.0" encoding="utf-8"?>
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-              <background android:drawable="@color/ic_launcher_background"/>
-              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-          </adaptive-icon>
-          """
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>
+"""
           with open(f"{res}/mipmap-anydpi-v26/ic_launcher.xml", "w") as f:
               f.write(icon_xml)
           with open(f"{res}/mipmap-anydpi-v26/ic_launcher_round.xml", "w") as f:
               f.write(icon_xml)
-          print("OK: mipmap-anydpi-v26 icons")
+          print("OK: mipmap-anydpi-v26")
 
           # Launcher foreground drawable
           os.makedirs(f"{res}/drawable", exist_ok=True)
           with open(f"{res}/drawable/ic_launcher_foreground.xml", "w") as f:
               f.write("""<?xml version="1.0" encoding="utf-8"?>
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp" android:height="108dp"
-              android:viewportWidth="108" android:viewportHeight="108">
-              <path android:fillColor="#e8b84b"
-                  android:pathData="M54,20C40,20 30,32 30,46C30,55 35,62 43,66C40,70 38,75 38,80C38,85 45,88 54,88C63,88 70,85 70,80C70,75 68,70 65,66C73,62 78,55 78,46C78,32 68,20 54,20Z"/>
-          </vector>
-          """)
-          print("OK: drawable/ic_launcher_foreground.xml")
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#e8b84b"
+        android:pathData="M54,20C40,20 30,32 30,46C30,55 35,62 43,66C40,70 38,75 38,80C38,85 45,88 54,88C63,88 70,85 70,80C70,75 68,70 65,66C73,62 78,55 78,46C78,32 68,20 54,20Z"/>
+</vector>
+""")
+          print("OK: ic_launcher_foreground.xml")
 
-          # colors.xml
+          # values/colors.xml
           os.makedirs(f"{res}/values", exist_ok=True)
           with open(f"{res}/values/colors.xml", "w") as f:
               f.write("""<?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="ic_launcher_background">#16120b</color>
-              <color name="bg">#0d0a06</color>
-              <color name="surface">#16120b</color>
-              <color name="gold">#c9922a</color>
-              <color name="gold_light">#e8b84b</color>
-          </resources>
-          """)
-          print("OK: colors.xml")
-
-          # strings.xml
+<resources>
+    <color name="ic_launcher_background">#16120b</color>
+    <color name="bg">#0d0a06</color>
+    <color name="surface">#16120b</color>
+    <color name="gold">#c9922a</color>
+    <color name="gold_light">#e8b84b</color>
+</resources>
+""")
           with open(f"{res}/values/strings.xml", "w") as f:
               f.write("""<resources>
-              <string name="app_name">Kallichi Amman Temple</string>
-          </resources>
-          """)
-          print("OK: strings.xml")
-
-          # themes.xml
+    <string name="app_name">Kallichi Amman Temple</string>
+</resources>
+""")
           with open(f"{res}/values/themes.xml", "w") as f:
               f.write("""<?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="Theme.Temple" parent="Theme.AppCompat.NoActionBar">
-                  <item name="android:windowBackground">@color/bg</item>
-                  <item name="android:statusBarColor">@color/surface</item>
-                  <item name="android:navigationBarColor">@color/bg</item>
-                  <item name="colorPrimary">@color/gold</item>
-                  <item name="colorPrimaryDark">@color/surface</item>
-                  <item name="colorAccent">@color/gold_light</item>
-              </style>
-          </resources>
-          """)
-          print("OK: themes.xml")
-
-          # gradle wrapper jar
+<resources>
+    <style name="Theme.Temple" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="colorPrimary">@color/gold</item>
+        <item name="colorPrimaryDark">@color/surface</item>
+        <item name="colorAccent">@color/gold_light</item>
+    </style>
+</resources>
+""")
+          print("OK: values files")
           os.makedirs(f"{base}/gradle/wrapper", exist_ok=True)
-          print("All done!")
+          print("ALL DONE!")
           PYEOF
 
       - name: Generate Gradle wrapper
@@ -210,7 +210,7 @@ jobs:
           chmod +x gradlew
           gradle assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Find APK and stage
         run: |
           find repo -name "*.apk"
           mkdir -p /tmp/apk-output
