@@ -19,20 +19,17 @@ jobs:
         run: |
           git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
           echo "✅ Checkout done"
-          ls repo/
 
-      - name: Fix project files
+      - name: Fix ALL project files
         run: |
-          # Create gradle.properties with AndroidX enabled
+          # ── gradle.properties ──────────────────────────────────────────
           cat > repo/gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           android.enableJetifier=true
           EOF
-          echo "✅ gradle.properties created"
-          cat repo/gradle.properties
 
-          # Fix app/build.gradle - simplify dependencies to avoid conflicts
+          # ── app/build.gradle ───────────────────────────────────────────
           cat > repo/app/build.gradle << 'EOF'
           plugins {
               id 'com.android.application'
@@ -48,9 +45,7 @@ jobs:
                   versionName "1.0"
               }
               buildTypes {
-                  debug {
-                      debuggable true
-                  }
+                  debug { debuggable true }
                   release {
                       minifyEnabled false
                       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -60,17 +55,117 @@ jobs:
                   sourceCompatibility JavaVersion.VERSION_1_8
                   targetCompatibility JavaVersion.VERSION_1_8
               }
-              buildFeatures {
-                  buildConfig true
-              }
+              buildFeatures { buildConfig true }
           }
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
               implementation 'androidx.core:core:1.12.0'
           }
           EOF
-          echo "✅ app/build.gradle simplified"
-          cat repo/app/build.gradle
+
+          # ── AndroidManifest.xml (remove package= attribute) ────────────
+          cat > repo/app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.Temple"
+                  android:usesCleartextTraffic="true"
+                  android:hardwareAccelerated="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="portrait"
+                      android:windowSoftInputMode="adjustResize"
+                      android:configChanges="orientation|screenSize|keyboardHidden|keyboard">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # ── Replace ALL mipmap icons with simple XML (no adaptive-icon) ─
+          # Delete existing mipmap folders and recreate with plain icons
+          rm -rf repo/app/src/main/res/mipmap-hdpi
+          rm -rf repo/app/src/main/res/mipmap-mdpi
+          rm -rf repo/app/src/main/res/mipmap-xhdpi
+          rm -rf repo/app/src/main/res/mipmap-xxhdpi
+          rm -rf repo/app/src/main/res/mipmap-xxxhdpi
+
+          # Create mipmap-anydpi-v26 for adaptive icons (API 26+)
+          mkdir -p repo/app/src/main/res/mipmap-anydpi-v26
+          cat > repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+          cp repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
+             repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          # Create simple vector drawable for launcher icon
+          mkdir -p repo/app/src/main/res/drawable
+          cat > repo/app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#e8b84b"
+                  android:pathData="M54,20 C40,20 30,32 30,46 C30,55 35,62 43,66 C40,70 38,75 38,80 C38,85 45,88 54,88 C63,88 70,85 70,80 C70,75 68,70 65,66 C73,62 78,55 78,46 C78,32 68,20 54,20 Z"/>
+              <circle android:fillColor="#c9922a" android:cx="54" android:cy="13" android:r="5"/>
+          </vector>
+          EOF
+
+          # Add launcher background color to colors.xml
+          mkdir -p repo/app/src/main/res/values
+          cat > repo/app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#16120b</color>
+              <color name="bg">#0d0a06</color>
+              <color name="surface">#16120b</color>
+              <color name="gold">#c9922a</color>
+              <color name="gold_light">#e8b84b</color>
+          </resources>
+          EOF
+
+          # Keep strings and themes
+          cat > repo/app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">Kallichi Amman Temple</string>
+          </resources>
+          EOF
+
+          cat > repo/app/src/main/res/values/themes.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.Temple" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:windowBackground">@color/bg</item>
+                  <item name="android:statusBarColor">@color/surface</item>
+                  <item name="android:navigationBarColor">@color/bg</item>
+                  <item name="colorPrimary">@color/gold</item>
+                  <item name="colorPrimaryDark">@color/surface</item>
+                  <item name="colorAccent">@color/gold_light</item>
+              </style>
+          </resources>
+          EOF
+
+          echo "✅ All project files fixed"
+          echo "Mipmap folders:"
+          ls repo/app/src/main/res/ | grep mipmap
 
       - name: Install Java 17
         run: |
@@ -81,24 +176,21 @@ jobs:
       - name: Download Gradle wrapper JAR
         run: |
           mkdir -p repo/gradle/wrapper
-          wget -q \
-            "https://services.gradle.org/distributions/gradle-8.4-bin.zip" \
-            -O /tmp/gradle.zip
+          wget -q "https://services.gradle.org/distributions/gradle-8.4-bin.zip" \
+               -O /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
-          find /tmp/gradle-dist -name "gradle-wrapper.jar" | head -1 | xargs -I{} cp {} repo/gradle/wrapper/gradle-wrapper.jar
-          ls -lh repo/gradle/wrapper/
-
-      - name: Install Gradle system-wide
-        run: |
+          find /tmp/gradle-dist -name "gradle-wrapper.jar" | head -1 | \
+               xargs -I{} cp {} repo/gradle/wrapper/gradle-wrapper.jar
+          ls -lh repo/gradle/wrapper/gradle-wrapper.jar
+          # Also install gradle system-wide as fallback
           sudo ln -sf /tmp/gradle-dist/gradle-8.4/bin/gradle /usr/local/bin/gradle
           gradle --version
 
       - name: Install Android SDK
         run: |
           sudo mkdir -p /opt/android-sdk/cmdline-tools
-          wget -q \
-            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
-            -O /tmp/cmdline-tools.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+               -O /tmp/cmdline-tools.zip
           sudo unzip -q /tmp/cmdline-tools.zip -d /opt/android-sdk/cmdline-tools
           sudo mv /opt/android-sdk/cmdline-tools/cmdline-tools \
                   /opt/android-sdk/cmdline-tools/latest
@@ -119,18 +211,14 @@ jobs:
 
       - name: Find and copy APK
         run: |
-          echo "Searching for APK..."
           find repo -name "*.apk" 2>/dev/null
           mkdir -p /tmp/apk-output
           APK=$(find repo -name "*.apk" | head -1)
-          if [ -z "$APK" ]; then
-            echo "ERROR: No APK found!"
-            exit 1
-          fi
+          if [ -z "$APK" ]; then echo "ERROR: No APK found!"; exit 1; fi
           cp "$APK" /tmp/apk-output/KallichiAmmanTemple.apk
-          echo "✅ APK ready: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
+          echo "✅ APK: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
