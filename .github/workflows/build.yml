@@ -18,8 +18,8 @@ jobs:
       - name: Checkout code
         run: |
           git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
-          cd repo && git checkout ${{ github.sha }}
-          ls -la repo/
+          echo "Files in repo:"
+          ls repo/
 
       - name: Install Java 17
         run: |
@@ -30,25 +30,25 @@ jobs:
       - name: Download Gradle wrapper JAR
         run: |
           mkdir -p repo/gradle/wrapper
-          # Download gradle-wrapper.jar from GitHub's own gradle releases
-          curl -fsSL "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
-               -o repo/gradle/wrapper/gradle-wrapper.jar || \
-          curl -fsSL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
-               -o repo/gradle/wrapper/gradle-wrapper.jar || \
-          wget --no-check-certificate -q \
-               "https://services.gradle.org/distributions/gradle-8.4-bin.zip" \
-               -O /tmp/gradle.zip && \
-          unzip -q /tmp/gradle.zip -d /tmp/gradle-dist && \
-          cp /tmp/gradle-dist/gradle-8.4/lib/plugins/gradle-wrapper-*.jar \
-             repo/gradle/wrapper/gradle-wrapper.jar || true
-          # Verify
+          # Try multiple sources for the gradle-wrapper.jar
+          curl -fsSL \
+            "https://github.com/gradle/gradle/raw/refs/tags/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
+            -o repo/gradle/wrapper/gradle-wrapper.jar && \
+          echo "Downloaded via curl method 1" || \
+          (
+            wget -q \
+              "https://services.gradle.org/distributions/gradle-8.4-bin.zip" \
+              -O /tmp/gradle.zip && \
+            unzip -q /tmp/gradle.zip -d /tmp/gradle-dist && \
+            find /tmp/gradle-dist -name "gradle-wrapper.jar" -exec cp {} repo/gradle/wrapper/gradle-wrapper.jar \; && \
+            echo "Downloaded via zip extraction"
+          )
           ls -lh repo/gradle/wrapper/
-          file repo/gradle/wrapper/gradle-wrapper.jar
 
-      - name: Install Gradle directly
+      - name: Install Gradle system-wide
         run: |
-          # Install Gradle 8.4 system-wide as fallback
-          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O /tmp/gradle.zip
+          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip \
+               -O /tmp/gradle.zip
           sudo unzip -q /tmp/gradle.zip -d /opt/
           sudo ln -sf /opt/gradle-8.4/bin/gradle /usr/local/bin/gradle
           gradle --version
@@ -56,8 +56,9 @@ jobs:
       - name: Install Android SDK
         run: |
           sudo mkdir -p /opt/android-sdk/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
-               -O /tmp/cmdline-tools.zip
+          wget -q \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+            -O /tmp/cmdline-tools.zip
           sudo unzip -q /tmp/cmdline-tools.zip -d /opt/android-sdk/cmdline-tools
           sudo mv /opt/android-sdk/cmdline-tools/cmdline-tools \
                   /opt/android-sdk/cmdline-tools/latest
@@ -65,7 +66,7 @@ jobs:
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          echo "Android SDK installed"
+          echo "Android SDK ready"
 
       - name: Build APK
         run: |
@@ -74,13 +75,11 @@ jobs:
           export ANDROID_SDK_ROOT=/opt/android-sdk
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools
           chmod +x gradlew
-          # Try gradlew first, fall back to system gradle
-          ./gradlew assembleDebug --stacktrace 2>&1 || \
-          gradle assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace || gradle assembleDebug --stacktrace
 
-      - name: Find and upload APK
+      - name: Find and copy APK
         run: |
-          # Find the APK wherever it ended up
+          echo "Searching for APK..."
           find repo -name "*.apk" 2>/dev/null
           mkdir -p /tmp/apk-output
           APK=$(find repo -name "*.apk" | head -1)
