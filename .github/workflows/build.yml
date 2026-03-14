@@ -9,189 +9,197 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-      ANDROID_HOME: /opt/android-sdk
-      ANDROID_SDK_ROOT: /opt/android-sdk
-
     steps:
       - name: Checkout code
-        run: |
-          git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
-
-      - name: Fix ALL project files
-        run: |
-          cat > repo/gradle.properties << 'EOF'
-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-android.useAndroidX=true
-android.enableJetifier=true
-EOF
-
-          cat > repo/app/build.gradle << 'EOF'
-plugins {
-    id 'com.android.application'
-}
-android {
-    namespace 'com.kallichi.temple'
-    compileSdk 34
-    defaultConfig {
-        applicationId "com.kallichi.temple"
-        minSdk 21
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-    }
-    buildTypes {
-        debug { debuggable true }
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    buildFeatures { buildConfig true }
-}
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.core:core:1.12.0'
-}
-EOF
-
-          cat > repo/app/src/main/AndroidManifest.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Temple"
-        android:usesCleartextTraffic="true"
-        android:hardwareAccelerated="true">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize"
-            android:configChanges="orientation|screenSize|keyboardHidden|keyboard">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-EOF
-
-          # Remove old mipmap folders with adaptive icons
-          rm -rf repo/app/src/main/res/mipmap-hdpi
-          rm -rf repo/app/src/main/res/mipmap-mdpi
-          rm -rf repo/app/src/main/res/mipmap-xhdpi
-          rm -rf repo/app/src/main/res/mipmap-xxhdpi
-          rm -rf repo/app/src/main/res/mipmap-xxxhdpi
-
-          # Create correct mipmap folder for adaptive icons (API 26+)
-          mkdir -p repo/app/src/main/res/mipmap-anydpi-v26
-          cat > repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-EOF
-          cp repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
-             repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-          cat > repo/app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#e8b84b"
-        android:pathData="M54,20C40,20 30,32 30,46C30,55 35,62 43,66C40,70 38,75 38,80C38,85 45,88 54,88C63,88 70,85 70,80C70,75 68,70 65,66C73,62 78,55 78,46C78,32 68,20 54,20Z"/>
-</vector>
-EOF
-
-          cat > repo/app/src/main/res/values/colors.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#16120b</color>
-    <color name="bg">#0d0a06</color>
-    <color name="surface">#16120b</color>
-    <color name="gold">#c9922a</color>
-    <color name="gold_light">#e8b84b</color>
-</resources>
-EOF
-
-          cat > repo/app/src/main/res/values/strings.xml << 'EOF'
-<resources>
-    <string name="app_name">Kallichi Amman Temple</string>
-</resources>
-EOF
-
-          cat > repo/app/src/main/res/values/themes.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.Temple" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowBackground">@color/bg</item>
-        <item name="android:statusBarColor">@color/surface</item>
-        <item name="android:navigationBarColor">@color/bg</item>
-        <item name="colorPrimary">@color/gold</item>
-        <item name="colorPrimaryDark">@color/surface</item>
-        <item name="colorAccent">@color/gold_light</item>
-    </style>
-</resources>
-EOF
-          echo "✅ All files fixed"
+        run: git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
 
       - name: Install Java 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openjdk-17-jdk wget unzip
+          sudo apt-get install -y openjdk-17-jdk wget unzip python3
           java -version
 
-      - name: Install Gradle and fix wrapper
+      - name: Install Gradle
         run: |
-          # Download Gradle
           wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O /tmp/gradle.zip
           sudo unzip -q /tmp/gradle.zip -d /opt/
           sudo ln -sf /opt/gradle-8.4/bin/gradle /usr/local/bin/gradle
           gradle --version
 
-          # Extract gradle-wrapper.jar from the Gradle installation
-          mkdir -p repo/gradle/wrapper
-          GRADLE_JAR=$(find /opt/gradle-8.4 -name "gradle-wrapper.jar" 2>/dev/null | head -1)
-          echo "Found JAR at: $GRADLE_JAR"
-          if [ -n "$GRADLE_JAR" ]; then
-            cp "$GRADLE_JAR" repo/gradle/wrapper/gradle-wrapper.jar
-            echo "✅ Copied gradle-wrapper.jar"
-          else
-            # If not found in installation, generate it using gradle wrapper task
-            cd repo
-            gradle wrapper --gradle-version 8.4
-            cd ..
-          fi
-          ls -lh repo/gradle/wrapper/
-
       - name: Install Android SDK
         run: |
           sudo mkdir -p /opt/android-sdk/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
-               -O /tmp/cmdline-tools.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
           sudo unzip -q /tmp/cmdline-tools.zip -d /opt/android-sdk/cmdline-tools
-          sudo mv /opt/android-sdk/cmdline-tools/cmdline-tools \
-                  /opt/android-sdk/cmdline-tools/latest
+          sudo mv /opt/android-sdk/cmdline-tools/cmdline-tools /opt/android-sdk/cmdline-tools/latest
           sudo chmod -R 777 /opt/android-sdk
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          echo "✅ Android SDK ready"
+
+      - name: Fix project files with Python
+        run: |
+          python3 << 'PYEOF'
+          import os, shutil
+
+          base = "repo"
+
+          # gradle.properties
+          with open(f"{base}/gradle.properties", "w") as f:
+              f.write("org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\n")
+              f.write("android.useAndroidX=true\n")
+              f.write("android.enableJetifier=true\n")
+          print("OK: gradle.properties")
+
+          # app/build.gradle
+          with open(f"{base}/app/build.gradle", "w") as f:
+              f.write("""plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.kallichi.temple'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.kallichi.temple"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  debug { debuggable true }
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+              buildFeatures { buildConfig true }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'androidx.core:core:1.12.0'
+          }
+          """)
+          print("OK: app/build.gradle")
+
+          # AndroidManifest.xml
+          with open(f"{base}/app/src/main/AndroidManifest.xml", "w") as f:
+              f.write("""<?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.Temple"
+                  android:usesCleartextTraffic="true"
+                  android:hardwareAccelerated="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="portrait"
+                      android:windowSoftInputMode="adjustResize"
+                      android:configChanges="orientation|screenSize|keyboardHidden|keyboard">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          """)
+          print("OK: AndroidManifest.xml")
+
+          # Remove old mipmap folders
+          res = f"{base}/app/src/main/res"
+          for d in ["mipmap-hdpi","mipmap-mdpi","mipmap-xhdpi","mipmap-xxhdpi","mipmap-xxxhdpi"]:
+              shutil.rmtree(f"{res}/{d}", ignore_errors=True)
+          print("OK: removed old mipmap folders")
+
+          # Create mipmap-anydpi-v26
+          os.makedirs(f"{res}/mipmap-anydpi-v26", exist_ok=True)
+          icon_xml = """<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          """
+          with open(f"{res}/mipmap-anydpi-v26/ic_launcher.xml", "w") as f:
+              f.write(icon_xml)
+          with open(f"{res}/mipmap-anydpi-v26/ic_launcher_round.xml", "w") as f:
+              f.write(icon_xml)
+          print("OK: mipmap-anydpi-v26 icons")
+
+          # Launcher foreground drawable
+          os.makedirs(f"{res}/drawable", exist_ok=True)
+          with open(f"{res}/drawable/ic_launcher_foreground.xml", "w") as f:
+              f.write("""<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#e8b84b"
+                  android:pathData="M54,20C40,20 30,32 30,46C30,55 35,62 43,66C40,70 38,75 38,80C38,85 45,88 54,88C63,88 70,85 70,80C70,75 68,70 65,66C73,62 78,55 78,46C78,32 68,20 54,20Z"/>
+          </vector>
+          """)
+          print("OK: drawable/ic_launcher_foreground.xml")
+
+          # colors.xml
+          os.makedirs(f"{res}/values", exist_ok=True)
+          with open(f"{res}/values/colors.xml", "w") as f:
+              f.write("""<?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#16120b</color>
+              <color name="bg">#0d0a06</color>
+              <color name="surface">#16120b</color>
+              <color name="gold">#c9922a</color>
+              <color name="gold_light">#e8b84b</color>
+          </resources>
+          """)
+          print("OK: colors.xml")
+
+          # strings.xml
+          with open(f"{res}/values/strings.xml", "w") as f:
+              f.write("""<resources>
+              <string name="app_name">Kallichi Amman Temple</string>
+          </resources>
+          """)
+          print("OK: strings.xml")
+
+          # themes.xml
+          with open(f"{res}/values/themes.xml", "w") as f:
+              f.write("""<?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.Temple" parent="Theme.AppCompat.NoActionBar">
+                  <item name="android:windowBackground">@color/bg</item>
+                  <item name="android:statusBarColor">@color/surface</item>
+                  <item name="android:navigationBarColor">@color/bg</item>
+                  <item name="colorPrimary">@color/gold</item>
+                  <item name="colorPrimaryDark">@color/surface</item>
+                  <item name="colorAccent">@color/gold_light</item>
+              </style>
+          </resources>
+          """)
+          print("OK: themes.xml")
+
+          # gradle wrapper jar
+          os.makedirs(f"{base}/gradle/wrapper", exist_ok=True)
+          print("All done!")
+          PYEOF
+
+      - name: Generate Gradle wrapper
+        run: |
+          cd repo
+          export ANDROID_HOME=/opt/android-sdk
+          export ANDROID_SDK_ROOT=/opt/android-sdk
+          gradle wrapper --gradle-version 8.4
+          ls -lh gradle/wrapper/
 
       - name: Build APK
         run: |
@@ -200,19 +208,18 @@ EOF
           export ANDROID_SDK_ROOT=/opt/android-sdk
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools
           chmod +x gradlew
-          # Use system gradle directly (most reliable)
           gradle assembleDebug --stacktrace
 
-      - name: Find and copy APK
+      - name: Upload APK
         run: |
-          find repo -name "*.apk" 2>/dev/null
+          find repo -name "*.apk"
           mkdir -p /tmp/apk-output
           APK=$(find repo -name "*.apk" | head -1)
-          if [ -z "$APK" ]; then echo "ERROR: No APK found!"; exit 1; fi
+          if [ -z "$APK" ]; then echo "No APK found!"; exit 1; fi
           cp "$APK" /tmp/apk-output/KallichiAmmanTemple.apk
-          echo "✅ APK: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
+          echo "APK size: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
 
-      - name: Upload APK
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
