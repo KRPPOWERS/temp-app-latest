@@ -16,7 +16,7 @@ jobs:
       - name: Install Java 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openjdk-17-jdk wget unzip python3
+          sudo apt-get install -y openjdk-17-jdk wget unzip
           java -version
 
       - name: Install Gradle
@@ -37,161 +37,25 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Fix project files with Python
+      - name: Write project files from base64
         run: |
-          python3 << 'PYEOF'
-          import os, shutil
-
-          base = "repo"
-
-          # gradle.properties
-          with open(f"{base}/gradle.properties", "w") as f:
-              f.write("org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\n")
-              f.write("android.useAndroidX=true\n")
-              f.write("android.enableJetifier=true\n")
-          print("OK: gradle.properties")
-
-          # app/build.gradle - with kotlin BOM to fix duplicate class error
-          with open(f"{base}/app/build.gradle", "w") as f:
-              f.write("""plugins {
-    id 'com.android.application'
-}
-android {
-    namespace 'com.kallichi.temple'
-    compileSdk 34
-    defaultConfig {
-        applicationId "com.kallichi.temple"
-        minSdk 21
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-    }
-    buildTypes {
-        debug { debuggable true }
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    buildFeatures { buildConfig true }
-    configurations.all {
-        resolutionStrategy {
-            force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
-            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
-            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
-        }
-    }
-}
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.core:core:1.12.0'
-    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
-}
-""")
-          print("OK: app/build.gradle")
-
-          # AndroidManifest.xml
-          with open(f"{base}/app/src/main/AndroidManifest.xml", "w") as f:
-              f.write("""<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Temple"
-        android:usesCleartextTraffic="true"
-        android:hardwareAccelerated="true">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize"
-            android:configChanges="orientation|screenSize|keyboardHidden|keyboard">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-""")
-          print("OK: AndroidManifest.xml")
-
-          # Remove old mipmap folders
-          res = f"{base}/app/src/main/res"
-          for d in ["mipmap-hdpi","mipmap-mdpi","mipmap-xhdpi","mipmap-xxhdpi","mipmap-xxxhdpi"]:
-              shutil.rmtree(f"{res}/{d}", ignore_errors=True)
-          print("OK: removed old mipmap folders")
-
-          # Create mipmap-anydpi-v26
-          os.makedirs(f"{res}/mipmap-anydpi-v26", exist_ok=True)
-          icon_xml = """<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-"""
-          with open(f"{res}/mipmap-anydpi-v26/ic_launcher.xml", "w") as f:
-              f.write(icon_xml)
-          with open(f"{res}/mipmap-anydpi-v26/ic_launcher_round.xml", "w") as f:
-              f.write(icon_xml)
-          print("OK: mipmap-anydpi-v26")
-
-          # Launcher foreground drawable
-          os.makedirs(f"{res}/drawable", exist_ok=True)
-          with open(f"{res}/drawable/ic_launcher_foreground.xml", "w") as f:
-              f.write("""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#e8b84b"
-        android:pathData="M54,20C40,20 30,32 30,46C30,55 35,62 43,66C40,70 38,75 38,80C38,85 45,88 54,88C63,88 70,85 70,80C70,75 68,70 65,66C73,62 78,55 78,46C78,32 68,20 54,20Z"/>
-</vector>
-""")
-          print("OK: ic_launcher_foreground.xml")
-
-          # values/colors.xml
-          os.makedirs(f"{res}/values", exist_ok=True)
-          with open(f"{res}/values/colors.xml", "w") as f:
-              f.write("""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#16120b</color>
-    <color name="bg">#0d0a06</color>
-    <color name="surface">#16120b</color>
-    <color name="gold">#c9922a</color>
-    <color name="gold_light">#e8b84b</color>
-</resources>
-""")
-          with open(f"{res}/values/strings.xml", "w") as f:
-              f.write("""<resources>
-    <string name="app_name">Kallichi Amman Temple</string>
-</resources>
-""")
-          with open(f"{res}/values/themes.xml", "w") as f:
-              f.write("""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.Temple" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowBackground">@color/bg</item>
-        <item name="android:statusBarColor">@color/surface</item>
-        <item name="android:navigationBarColor">@color/bg</item>
-        <item name="colorPrimary">@color/gold</item>
-        <item name="colorPrimaryDark">@color/surface</item>
-        <item name="colorAccent">@color/gold_light</item>
-    </style>
-</resources>
-""")
-          print("OK: values files")
-          os.makedirs(f"{base}/gradle/wrapper", exist_ok=True)
-          print("ALL DONE!")
-          PYEOF
+          echo "b3JnLmdyYWRsZS5qdm1hcmdzPS1YbXgyMDQ4bSAtRGZpbGUuZW5jb2Rpbmc9VVRGLTgKYW5kcm9pZC51c2VBbmRyb2lkWD10cnVlCmFuZHJvaWQuZW5hYmxlSmV0aWZpZXI9dHJ1ZQo=" | base64 -d > repo/gradle.properties
+          echo "cGx1Z2lucyB7CiAgICBpZCAnY29tLmFuZHJvaWQuYXBwbGljYXRpb24nCn0KYW5kcm9pZCB7CiAgICBuYW1lc3BhY2UgJ2NvbS5rYWxsaWNoaS50ZW1wbGUnCiAgICBjb21waWxlU2RrIDM0CiAgICBkZWZhdWx0Q29uZmlnIHsKICAgICAgICBhcHBsaWNhdGlvbklkICJjb20ua2FsbGljaGkudGVtcGxlIgogICAgICAgIG1pblNkayAyMQogICAgICAgIHRhcmdldFNkayAzNAogICAgICAgIHZlcnNpb25Db2RlIDEKICAgICAgICB2ZXJzaW9uTmFtZSAiMS4wIgogICAgfQogICAgYnVpbGRUeXBlcyB7CiAgICAgICAgZGVidWcgeyBkZWJ1Z2dhYmxlIHRydWUgfQogICAgICAgIHJlbGVhc2UgewogICAgICAgICAgICBtaW5pZnlFbmFibGVkIGZhbHNlCiAgICAgICAgICAgIHByb2d1YXJkRmlsZXMgZ2V0RGVmYXVsdFByb2d1YXJkRmlsZSgncHJvZ3VhcmQtYW5kcm9pZC1vcHRpbWl6ZS50eHQnKSwgJ3Byb2d1YXJkLXJ1bGVzLnBybycKICAgICAgICB9CiAgICB9CiAgICBjb21waWxlT3B0aW9ucyB7CiAgICAgICAgc291cmNlQ29tcGF0aWJpbGl0eSBKYXZhVmVyc2lvbi5WRVJTSU9OXzFfOAogICAgICAgIHRhcmdldENvbXBhdGliaWxpdHkgSmF2YVZlcnNpb24uVkVSU0lPTl8xXzgKICAgIH0KICAgIGJ1aWxkRmVhdHVyZXMgeyBidWlsZENvbmZpZyB0cnVlIH0KICAgIGNvbmZpZ3VyYXRpb25zLmFsbCB7CiAgICAgICAgcmVzb2x1dGlvblN0cmF0ZWd5IHsKICAgICAgICAgICAgZm9yY2UgJ29yZy5qZXRicmFpbnMua290bGluOmtvdGxpbi1zdGRsaWI6MS44LjIyJwogICAgICAgICAgICBmb3JjZSAnb3JnLmpldGJyYWlucy5rb3RsaW46a290bGluLXN0ZGxpYi1qZGs3OjEuOC4yMicKICAgICAgICAgICAgZm9yY2UgJ29yZy5qZXRicmFpbnMua290bGluOmtvdGxpbi1zdGRsaWItamRrODoxLjguMjInCiAgICAgICAgfQogICAgfQp9CmRlcGVuZGVuY2llcyB7CiAgICBpbXBsZW1lbnRhdGlvbiAnYW5kcm9pZHguYXBwY29tcGF0OmFwcGNvbXBhdDoxLjYuMScKICAgIGltcGxlbWVudGF0aW9uICdhbmRyb2lkeC5jb3JlOmNvcmU6MS4xMi4wJwogICAgaW1wbGVtZW50YXRpb24gcGxhdGZvcm0oJ29yZy5qZXRicmFpbnMua290bGluOmtvdGxpbi1ib206MS44LjIyJykKfQo=" | base64 -d > repo/app/build.gradle
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLklOVEVSTkVUIiAvPgogICAgPHVzZXMtcGVybWlzc2lvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQucGVybWlzc2lvbi5BQ0NFU1NfTkVUV09SS19TVEFURSIgLz4KICAgIDxhcHBsaWNhdGlvbgogICAgICAgIGFuZHJvaWQ6YWxsb3dCYWNrdXA9InRydWUiCiAgICAgICAgYW5kcm9pZDppY29uPSJAbWlwbWFwL2ljX2xhdW5jaGVyIgogICAgICAgIGFuZHJvaWQ6bGFiZWw9IkBzdHJpbmcvYXBwX25hbWUiCiAgICAgICAgYW5kcm9pZDpyb3VuZEljb249IkBtaXBtYXAvaWNfbGF1bmNoZXJfcm91bmQiCiAgICAgICAgYW5kcm9pZDpzdXBwb3J0c1J0bD0idHJ1ZSIKICAgICAgICBhbmRyb2lkOnRoZW1lPSJAc3R5bGUvVGhlbWUuVGVtcGxlIgogICAgICAgIGFuZHJvaWQ6dXNlc0NsZWFydGV4dFRyYWZmaWM9InRydWUiCiAgICAgICAgYW5kcm9pZDpoYXJkd2FyZUFjY2VsZXJhdGVkPSJ0cnVlIj4KICAgICAgICA8YWN0aXZpdHkKICAgICAgICAgICAgYW5kcm9pZDpuYW1lPSIuTWFpbkFjdGl2aXR5IgogICAgICAgICAgICBhbmRyb2lkOmV4cG9ydGVkPSJ0cnVlIgogICAgICAgICAgICBhbmRyb2lkOnNjcmVlbk9yaWVudGF0aW9uPSJwb3J0cmFpdCIKICAgICAgICAgICAgYW5kcm9pZDp3aW5kb3dTb2Z0SW5wdXRNb2RlPSJhZGp1c3RSZXNpemUiCiAgICAgICAgICAgIGFuZHJvaWQ6Y29uZmlnQ2hhbmdlcz0ib3JpZW50YXRpb258c2NyZWVuU2l6ZXxrZXlib2FyZEhpZGRlbnxrZXlib2FyZCI+CiAgICAgICAgICAgIDxpbnRlbnQtZmlsdGVyPgogICAgICAgICAgICAgICAgPGFjdGlvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmFjdGlvbi5NQUlOIiAvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEFVTkNIRVIiIC8+CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgogICAgPC9hcHBsaWNhdGlvbj4KPC9tYW5pZmVzdD4K" | base64 -d > repo/app/src/main/AndroidManifest.xml
+          rm -rf repo/app/src/main/res/mipmap-hdpi repo/app/src/main/res/mipmap-mdpi
+          rm -rf repo/app/src/main/res/mipmap-xhdpi repo/app/src/main/res/mipmap-xxhdpi
+          rm -rf repo/app/src/main/res/mipmap-xxxhdpi
+          mkdir -p repo/app/src/main/res/mipmap-anydpi-v26
+          mkdir -p repo/app/src/main/res/drawable
+          mkdir -p repo/app/src/main/res/values
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPGFkYXB0aXZlLWljb24geG1sbnM6YW5kcm9pZD0iaHR0cDovL3NjaGVtYXMuYW5kcm9pZC5jb20vYXBrL3Jlcy9hbmRyb2lkIj4KICAgIDxiYWNrZ3JvdW5kIGFuZHJvaWQ6ZHJhd2FibGU9IkBjb2xvci9pY19sYXVuY2hlcl9iYWNrZ3JvdW5kIi8+CiAgICA8Zm9yZWdyb3VuZCBhbmRyb2lkOmRyYXdhYmxlPSJAZHJhd2FibGUvaWNfbGF1bmNoZXJfZm9yZWdyb3VuZCIvPgo8L2FkYXB0aXZlLWljb24+Cg==" | base64 -d > repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml repo/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHZlY3RvciB4bWxuczphbmRyb2lkPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS9hcGsvcmVzL2FuZHJvaWQiCiAgICBhbmRyb2lkOndpZHRoPSIxMDhkcCIgYW5kcm9pZDpoZWlnaHQ9IjEwOGRwIgogICAgYW5kcm9pZDp2aWV3cG9ydFdpZHRoPSIxMDgiIGFuZHJvaWQ6dmlld3BvcnRIZWlnaHQ9IjEwOCI+CiAgICA8cGF0aCBhbmRyb2lkOmZpbGxDb2xvcj0iI2U4Yjg0YiIKICAgICAgICBhbmRyb2lkOnBhdGhEYXRhPSJNNTQsMjBDNDAsMjAgMzAsMzIgMzAsNDZDMzAsNTUgMzUsNjIgNDMsNjZDNDAsNzAgMzgsNzUgMzgsODBDMzgsODUgNDUsODggNTQsODhDNjMsODggNzAsODUgNzAsODBDNzAsNzUgNjgsNzAgNjUsNjZDNzMsNjIgNzgsNTUgNzgsNDZDNzgsMzIgNjgsMjAgNTQsMjBaIi8+CjwvdmVjdG9yPgo=" | base64 -d > repo/app/src/main/res/drawable/ic_launcher_foreground.xml
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHJlc291cmNlcz4KICAgIDxjb2xvciBuYW1lPSJpY19sYXVuY2hlcl9iYWNrZ3JvdW5kIj4jMTYxMjBiPC9jb2xvcj4KICAgIDxjb2xvciBuYW1lPSJiZyI+IzBkMGEwNjwvY29sb3I+CiAgICA8Y29sb3IgbmFtZT0ic3VyZmFjZSI+IzE2MTIwYjwvY29sb3I+CiAgICA8Y29sb3IgbmFtZT0iZ29sZCI+I2M5OTIyYTwvY29sb3I+CiAgICA8Y29sb3IgbmFtZT0iZ29sZF9saWdodCI+I2U4Yjg0YjwvY29sb3I+CjwvcmVzb3VyY2VzPgo=" | base64 -d > repo/app/src/main/res/values/colors.xml
+          echo "PHJlc291cmNlcz4KICAgIDxzdHJpbmcgbmFtZT0iYXBwX25hbWUiPkthbGxpY2hpIEFtbWFuIFRlbXBsZTwvc3RyaW5nPgo8L3Jlc291cmNlcz4K" | base64 -d > repo/app/src/main/res/values/strings.xml
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHJlc291cmNlcz4KICAgIDxzdHlsZSBuYW1lPSJUaGVtZS5UZW1wbGUiIHBhcmVudD0iVGhlbWUuQXBwQ29tcGF0Lk5vQWN0aW9uQmFyIj4KICAgICAgICA8aXRlbSBuYW1lPSJhbmRyb2lkOndpbmRvd0JhY2tncm91bmQiPkBjb2xvci9iZzwvaXRlbT4KICAgICAgICA8aXRlbSBuYW1lPSJhbmRyb2lkOnN0YXR1c0JhckNvbG9yIj5AY29sb3Ivc3VyZmFjZTwvaXRlbT4KICAgICAgICA8aXRlbSBuYW1lPSJhbmRyb2lkOm5hdmlnYXRpb25CYXJDb2xvciI+QGNvbG9yL2JnPC9pdGVtPgogICAgICAgIDxpdGVtIG5hbWU9ImNvbG9yUHJpbWFyeSI+QGNvbG9yL2dvbGQ8L2l0ZW0+CiAgICAgICAgPGl0ZW0gbmFtZT0iY29sb3JQcmltYXJ5RGFyayI+QGNvbG9yL3N1cmZhY2U8L2l0ZW0+CiAgICAgICAgPGl0ZW0gbmFtZT0iY29sb3JBY2NlbnQiPkBjb2xvci9nb2xkX2xpZ2h0PC9pdGVtPgogICAgPC9zdHlsZT4KPC9yZXNvdXJjZXM+Cg==" | base64 -d > repo/app/src/main/res/values/themes.xml
+          echo "All files written OK"
+          cat repo/gradle.properties
 
       - name: Generate Gradle wrapper
         run: |
@@ -210,14 +74,14 @@ dependencies {
           chmod +x gradlew
           gradle assembleDebug --stacktrace
 
-      - name: Find APK and stage
+      - name: Find and stage APK
         run: |
           find repo -name "*.apk"
           mkdir -p /tmp/apk-output
           APK=$(find repo -name "*.apk" | head -1)
           if [ -z "$APK" ]; then echo "No APK found!"; exit 1; fi
           cp "$APK" /tmp/apk-output/KallichiAmmanTemple.apk
-          echo "APK size: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
+          echo "APK: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
