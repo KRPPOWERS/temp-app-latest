@@ -15,11 +15,11 @@ jobs:
       ANDROID_SDK_ROOT: /opt/android-sdk
 
     steps:
-      - name: Get source code
+      - name: Checkout code
         run: |
-          git clone https://github.com/${{ github.repository }} repo
-          cd repo
-          git checkout ${{ github.sha }}
+          git config --global credential.helper store
+          git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
+          cd repo && git checkout ${{ github.sha }}
 
       - name: Install Java 17
         run: |
@@ -46,13 +46,14 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Save APK
-        run: |
-          mkdir -p /tmp/apk-output
-          cp repo/app/build/outputs/apk/debug/app-debug.apk /tmp/apk-output/KallichiAmmanTemple.apk
-          echo "APK size: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
-
       - name: Upload APK
+        run: |
+          APK_PATH="repo/app/build/outputs/apk/debug/app-debug.apk"
+          echo "APK size: $(du -sh $APK_PATH)"
+          mkdir -p /tmp/apk-output
+          cp $APK_PATH /tmp/apk-output/KallichiAmmanTemple.apk
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
