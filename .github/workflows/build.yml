@@ -19,31 +19,53 @@ jobs:
         run: |
           git clone https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git repo
           cd repo && git checkout ${{ github.sha }}
+          ls -la repo/
 
       - name: Install Java 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y openjdk-17-jdk
+          sudo apt-get install -y openjdk-17-jdk wget unzip curl
           java -version
 
       - name: Download Gradle wrapper JAR
         run: |
           mkdir -p repo/gradle/wrapper
-          wget -q "https://repo1.maven.org/maven2/org/gradle/gradle-wrapper/8.4/gradle-wrapper-8.4.jar" \
-               -O repo/gradle/wrapper/gradle-wrapper.jar
-          echo "Gradle wrapper JAR: $(du -sh repo/gradle/wrapper/gradle-wrapper.jar)"
+          # Download gradle-wrapper.jar from GitHub's own gradle releases
+          curl -fsSL "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
+               -o repo/gradle/wrapper/gradle-wrapper.jar || \
+          curl -fsSL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
+               -o repo/gradle/wrapper/gradle-wrapper.jar || \
+          wget --no-check-certificate -q \
+               "https://services.gradle.org/distributions/gradle-8.4-bin.zip" \
+               -O /tmp/gradle.zip && \
+          unzip -q /tmp/gradle.zip -d /tmp/gradle-dist && \
+          cp /tmp/gradle-dist/gradle-8.4/lib/plugins/gradle-wrapper-*.jar \
+             repo/gradle/wrapper/gradle-wrapper.jar || true
+          # Verify
+          ls -lh repo/gradle/wrapper/
+          file repo/gradle/wrapper/gradle-wrapper.jar
+
+      - name: Install Gradle directly
+        run: |
+          # Install Gradle 8.4 system-wide as fallback
+          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O /tmp/gradle.zip
+          sudo unzip -q /tmp/gradle.zip -d /opt/
+          sudo ln -sf /opt/gradle-8.4/bin/gradle /usr/local/bin/gradle
+          gradle --version
 
       - name: Install Android SDK
         run: |
           sudo mkdir -p /opt/android-sdk/cmdline-tools
-          cd /tmp
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          sudo unzip -q commandlinetools-linux-11076708_latest.zip -d /opt/android-sdk/cmdline-tools
-          sudo mv /opt/android-sdk/cmdline-tools/cmdline-tools /opt/android-sdk/cmdline-tools/latest
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+               -O /tmp/cmdline-tools.zip
+          sudo unzip -q /tmp/cmdline-tools.zip -d /opt/android-sdk/cmdline-tools
+          sudo mv /opt/android-sdk/cmdline-tools/cmdline-tools \
+                  /opt/android-sdk/cmdline-tools/latest
           sudo chmod -R 777 /opt/android-sdk
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin
           yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          echo "Android SDK installed"
 
       - name: Build APK
         run: |
@@ -52,16 +74,24 @@ jobs:
           export ANDROID_SDK_ROOT=/opt/android-sdk
           export PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          # Try gradlew first, fall back to system gradle
+          ./gradlew assembleDebug --stacktrace 2>&1 || \
+          gradle assembleDebug --stacktrace
 
-      - name: Copy APK
+      - name: Find and upload APK
         run: |
+          # Find the APK wherever it ended up
+          find repo -name "*.apk" 2>/dev/null
           mkdir -p /tmp/apk-output
-          cp repo/app/build/outputs/apk/debug/app-debug.apk \
-             /tmp/apk-output/KallichiAmmanTemple.apk
-          echo "APK size: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
+          APK=$(find repo -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "ERROR: No APK found!"
+            exit 1
+          fi
+          cp "$APK" /tmp/apk-output/KallichiAmmanTemple.apk
+          echo "APK ready: $(du -sh /tmp/apk-output/KallichiAmmanTemple.apk)"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
