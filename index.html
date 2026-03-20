@@ -2,28 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Arulmigu Kallichi Amman Temple</title>
-
-<!-- PWA Meta Tags -->
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kallichi Amman">
-<meta name="theme-color" content="#16120b">
-<meta name="description" content="Arulmigu Kallichi Amman Temple Management System">
-
-<!-- PWA Manifest -->
-<link rel="manifest" href="manifest.json">
-
-<!-- Apple Touch Icons (iPhone home screen icon) -->
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="167x167" href="icon-192.png">
-
-<!-- Apple Splash Screens -->
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -48,7 +28,7 @@
   --shadow: 0 4px 24px rgba(0,0,0,0.5);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',serif;font-size:16px;min-height:100vh;overflow-x:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',serif;font-size:16px;min-height:100vh;overflow-x:hidden}
 /* Scrollbar */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:var(--bg)}
@@ -58,7 +38,7 @@ body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',serif;font
 #app{display:flex;min-height:100vh}
 #sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;transition:transform .3s}
 #main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;padding-top:max(12px, env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 #content{padding:24px;flex:1}
 
 /* Sidebar */
@@ -821,7 +801,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>#</th><th>Date</th><th>Donor</th><th>Type</th><th>Description</th><th>Value</th><th>Occasion</th></tr></thead>
+              <thead><tr><th>#</th><th>Date</th><th>Donor</th><th>Type</th><th>Description</th><th>Value</th><th>Occasion</th><th>Actions</th></tr></thead>
               <tbody id="gifts-tbody"></tbody>
             </table>
           </div>
@@ -1486,8 +1466,9 @@ function saveGift(){ if(!isAdmin()){alert("⚠️ Admin login required.");return
 function renderGifts(){
   const search=(document.getElementById('g-search').value||'').toLowerCase();
   let list=DB.get('gifts').filter(g=>!search||g.name.toLowerCase().includes(search));
-  document.getElementById('gifts-tbody').innerHTML=list.map((g,i)=>`<tr><td>${i+1}</td><td>${fmtDate(g.date)}</td><td>${g.name}</td><td><span class="badge badge-gold">${g.type}</span></td><td>${g.desc||'—'}</td><td>${g.value?fmt(g.value):'—'}</td><td>${g.occasion||'—'}</td></tr>`).join('');
+  document.getElementById('gifts-tbody').innerHTML=list.map((g,i)=>`<tr><td>${i+1}</td><td>${fmtDate(g.date)}</td><td>${g.name}</td><td><span class="badge badge-gold">${g.type}</span></td><td>${g.desc||'—'}</td><td>${g.value?fmt(g.value):'—'}</td><td>${g.occasion||'—'}</td><td><button class="btn btn-danger btn-sm admin-only-inline" onclick="delGift('${g.id}')">✕</button></td></tr>`).join('');
 }
+function delGift(id){ if(!isAdmin()){alert("⚠️ Admin login required.");return;}confirmAction('Delete this gift record?',()=>{DB.set('gifts',DB.get('gifts').filter(g=>g.id!==id));renderGifts();});}
 function clearGiftForm(){['g-name','g-phone','g-desc','g-value','g-occasion','g-address'].forEach(id=>document.getElementById(id).value='');document.getElementById('g-date').value=today();}
 function exportGiftsExcel(){const ws=XLSX.utils.json_to_sheet(DB.get('gifts').map(g=>({Date:g.date,Donor:g.name,Phone:g.phone,Type:g.type,Description:g.desc,Value:g.value,Occasion:g.occasion})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Gifts');XLSX.writeFile(wb,'gifts.xlsx');}
 
@@ -1613,70 +1594,124 @@ function testGSheetSync(){
   });
 }
 // Push all local data TO Google Sheets
-function syncToGSheet(){
-  if(!navigator.onLine){
-    const el=document.getElementById('gsheet-status');
-    if(el) el.innerHTML='<div class="alert alert-warn">📶 You are offline. Data saved locally and will sync when online.</div>';
-    updateSyncUI(false);return;
+// ── MERGE HELPER ─────────────────────────────────────────────────────────────
+// Merges two arrays by unique 'id'. Sheet records + local records combined.
+// For inventory/assets: latest 'updated' timestamp wins (last-write-wins per item).
+// For all others: union by id — no record is ever deleted by a sync.
+function mergeByID(local, remote, useTimestamp) {
+  const map = {};
+  // Add remote first
+  (remote || []).forEach(r => { if(r && r.id) map[r.id] = r; });
+  // Local records override or add
+  (local || []).forEach(l => {
+    if(!l || !l.id) return;
+    if(!map[l.id]) {
+      map[l.id] = l; // New local record not in sheet → add it
+    } else if(useTimestamp) {
+      // For items with 'updated' field — keep the newer one
+      const localTime = new Date(l.updated || l.date || 0).getTime();
+      const remoteTime = new Date(map[l.id].updated || map[l.id].date || 0).getTime();
+      if(localTime >= remoteTime) map[l.id] = l;
+    } else {
+      // For transaction records — keep local version (it may have latest edits)
+      map[l.id] = l;
+    }
+  });
+  // Return sorted by date descending (newest first)
+  return Object.values(map).sort((a,b)=>{
+    const da = new Date(b.date || b.invDate || 0).getTime();
+    const db2 = new Date(a.date || a.invDate || 0).getTime();
+    return da - db2;
+  });
+}
+
+// ── FULL BIDIRECTIONAL SYNC ───────────────────────────────────────────────────
+// Step 1: Pull from Google Sheets
+// Step 2: Merge pulled data with local data (no data lost)
+// Step 3: Save merged data locally
+// Step 4: Push merged data back to Google Sheets
+// Result: Both sheet and device have COMPLETE combined data
+function fullSync(onDone) {
+  if(!navigator.onLine) {
+    updateSyncUI(false);
+    if(onDone) onDone();
+    return;
   }
-  const data={
-    action:'push',
-    donations:DB.get('donations'),
-    expenses:DB.get('expenses'),
-    inventory:DB.get('inventory'),
-    assets:DB.get('assets'),
-    pettycash:DB.get('pettycash'),
-    vendors:DB.get('vendors'),
-    gifts:DB.get('gifts'),
-    syncTime:new Date().toISOString()
-  };
   updateSyncUI('syncing');
-  fetch(GSHEET_URL,{method:'POST',body:JSON.stringify(data)})
-    .then(r=>r.text()).then(()=>{
-      const el=document.getElementById('gsheet-status');
-      if(el) el.innerHTML='<div class="alert alert-success">✅ Data pushed to Google Sheets!</div>';
-      localStorage.setItem('tms_last_sync',new Date().toISOString());
-      updateSyncUI(true);
-    }).catch(()=>{
-      const el=document.getElementById('gsheet-status');
-      if(el) el.innerHTML='<div class="alert alert-warn">⚠️ Push failed. Will retry on next save.</div>';
+
+  // Step 1 & 2: Pull from sheet then merge
+  fetch(GSHEET_URL+'?action=pull')
+    .then(r=>r.json())
+    .then(sheetData=>{
+      if(sheetData && sheetData.donations !== undefined) {
+        // Merge each collection — local + sheet combined
+        const merged = {
+          donations: mergeByID(DB.get('donations'), sheetData.donations, false),
+          expenses:  mergeByID(DB.get('expenses'),  sheetData.expenses,  false),
+          inventory: mergeByID(DB.get('inventory'), sheetData.inventory, true),
+          assets:    mergeByID(DB.get('assets'),    sheetData.assets,    true),
+          pettycash: mergeByID(DB.get('pettycash'), sheetData.pettycash, false),
+          vendors:   mergeByID(DB.get('vendors'),   sheetData.vendors,   false),
+          gifts:     mergeByID(DB.get('gifts'),     sheetData.gifts,     false),
+        };
+
+        // Step 3: Save merged data locally (without triggering another sync)
+        Object.keys(merged).forEach(k => {
+          localStorage.setItem('tms_'+k, JSON.stringify(merged[k]));
+        });
+
+        // Step 4: Push merged data back to sheet
+        const pushData = {
+          action:'push',
+          ...merged,
+          syncTime: new Date().toISOString()
+        };
+        return fetch(GSHEET_URL, {method:'POST', body:JSON.stringify(pushData)})
+          .then(r=>r.text())
+          .then(()=>{
+            localStorage.setItem('tms_last_sync', new Date().toISOString());
+            updateSyncUI(true);
+            const el=document.getElementById('gsheet-status');
+            if(el) el.innerHTML='<div class="alert alert-success">✅ Synced & merged with Google Sheets!</div>';
+            if(onDone) onDone();
+          });
+      } else {
+        // Sheet is empty — just push local data up
+        return pushLocalToSheet().then(()=>{ if(onDone) onDone(); });
+      }
+    })
+    .catch(()=>{
+      // Network failed — work offline, retry on next save
       updateSyncUI(false);
+      if(onDone) onDone();
     });
 }
 
-// Pull latest data FROM Google Sheets (called on page load)
-function pullFromGSheet(onDone){
-  if(!navigator.onLine){updateSyncUI(false);if(onDone)onDone();return;}
-  updateSyncUI('syncing');
-  const txt=document.getElementById('syncText');
-  if(txt) txt.textContent='Loading...';
-  fetch(GSHEET_URL+'?action=pull')
-    .then(r=>r.json())
-    .then(data=>{
-      if(data && data.donations !== undefined){
-        // Only overwrite local if sheet has data (prevents wiping on first use)
-        if(data.donations && data.donations.length>0) localStorage.setItem('tms_donations', JSON.stringify(data.donations));
-        if(data.expenses && data.expenses.length>0) localStorage.setItem('tms_expenses', JSON.stringify(data.expenses));
-        if(data.inventory && data.inventory.length>0) localStorage.setItem('tms_inventory', JSON.stringify(data.inventory));
-        if(data.assets && data.assets.length>0) localStorage.setItem('tms_assets', JSON.stringify(data.assets));
-        if(data.pettycash && data.pettycash.length>0) localStorage.setItem('tms_pettycash', JSON.stringify(data.pettycash));
-        if(data.vendors && data.vendors.length>0) localStorage.setItem('tms_vendors', JSON.stringify(data.vendors));
-        if(data.gifts && data.gifts.length>0) localStorage.setItem('tms_gifts', JSON.stringify(data.gifts));
-        updateSyncUI(true);
-        const el=document.getElementById('gsheet-status');
-        if(el) el.innerHTML='<div class="alert alert-success">✅ Data loaded from Google Sheets!</div>';
-      } else {
-        // No data in sheets yet — push local data up
-        updateSyncUI(true);
-        syncToGSheet();
-      }
-      if(onDone) onDone();
-    }).catch(()=>{
-      // Pull failed — work with local data
-      updateSyncUI(false);
-      if(onDone) onDone();
-    });
+// Push local data to sheet (used when sheet is empty / first time)
+function pushLocalToSheet() {
+  const data = {
+    action:'push',
+    donations: DB.get('donations'),
+    expenses:  DB.get('expenses'),
+    inventory: DB.get('inventory'),
+    assets:    DB.get('assets'),
+    pettycash: DB.get('pettycash'),
+    vendors:   DB.get('vendors'),
+    gifts:     DB.get('gifts'),
+    syncTime:  new Date().toISOString()
+  };
+  return fetch(GSHEET_URL, {method:'POST', body:JSON.stringify(data)})
+    .then(r=>r.text())
+    .then(()=>{
+      localStorage.setItem('tms_last_sync', new Date().toISOString());
+      updateSyncUI(true);
+    })
+    .catch(()=>{ updateSyncUI(false); });
 }
+
+// Keep old names as aliases so existing buttons/calls still work
+function syncToGSheet()    { fullSync(null); }
+function pullFromGSheet(cb){ fullSync(cb);   }
 
 function updateSyncUI(state){
   const dot=document.getElementById('syncDot');const txt=document.getElementById('syncText');
@@ -1690,29 +1725,12 @@ function updateSyncUI(state){
   else{dot.className='sync-dot offline';txt.textContent='Offline';}
 }
 
-// Called after every DB.set() — push latest to sheet
+// Called after every DB.set() — do full bidirectional sync
 function triggerAutoSync(){
   if(!GSHEET_SYNC_ON_SAVE || !navigator.onLine) return;
-  // Push local data up, then immediately pull back to stay in sync with other devices
-  const data={
-    action:'push',
-    donations:DB.get('donations'),
-    expenses:DB.get('expenses'),
-    inventory:DB.get('inventory'),
-    assets:DB.get('assets'),
-    pettycash:DB.get('pettycash'),
-    vendors:DB.get('vendors'),
-    gifts:DB.get('gifts'),
-    syncTime:new Date().toISOString()
-  };
-  updateSyncUI('syncing');
-  fetch(GSHEET_URL,{method:'POST',body:JSON.stringify(data)})
-    .then(r=>r.text())
-    .then(()=>{
-      localStorage.setItem('tms_last_sync', new Date().toISOString());
-      updateSyncUI(true);
-    })
-    .catch(()=>{ updateSyncUI(false); });
+  // Debounce: don't sync more than once every 3 seconds
+  clearTimeout(window._syncDebounce);
+  window._syncDebounce = setTimeout(()=>{ fullSync(null); }, 3000);
 }
 function exportAllData(){const data={donations:DB.get('donations'),expenses:DB.get('expenses'),inventory:DB.get('inventory'),assets:DB.get('assets'),pettycash:DB.get('pettycash'),vendors:DB.get('vendors'),gifts:DB.get('gifts'),settings:DB.getObj('settings')};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='temple_backup_'+today()+'.json';a.click();}
 function importData(evt){const f=evt.target.files[0];if(!f) return;const r=new FileReader();r.onload=e=>{try{const data=JSON.parse(e.target.result);if(data.donations)DB.set('donations',data.donations);if(data.expenses)DB.set('expenses',data.expenses);if(data.inventory)DB.set('inventory',data.inventory);if(data.assets)DB.set('assets',data.assets);if(data.pettycash)DB.set('pettycash',data.pettycash);if(data.vendors)DB.set('vendors',data.vendors);if(data.gifts)DB.set('gifts',data.gifts);if(data.settings)DB.set('settings',data.settings);alert('✅ Data imported successfully!');refreshDashboard();}catch{alert('Invalid backup file');}};r.readAsText(f);}
@@ -1738,17 +1756,6 @@ window.addEventListener('load',()=>{
   window.addEventListener('offline',()=>updateSyncUI(false));
 
 });
-</script>
-
-<script>
-// Register Service Worker for offline support
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('sw.js')
-      .then(function(reg) { console.log('SW registered'); })
-      .catch(function(err) { console.log('SW failed: ', err); });
-  });
-}
 </script>
 </body>
 </html>
